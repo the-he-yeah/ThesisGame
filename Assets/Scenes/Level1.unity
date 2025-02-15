@@ -442,6 +442,14 @@ PrefabInstance:
     serializedVersion: 3
     m_TransformParent: {fileID: 1233606424}
     m_Modifications:
+    - target: {fileID: 503961230800541495, guid: 13dbc35e1cc798d49af7d978a773365d, type: 3}
+      propertyPath: m_IsActive
+      value: 1
+      objectReference: {fileID: 0}
+    - target: {fileID: 4914240220411575064, guid: 13dbc35e1cc798d49af7d978a773365d, type: 3}
+      propertyPath: m_IsActive
+      value: 1
+      objectReference: {fileID: 0}
     - target: {fileID: 5273802428282708273, guid: 13dbc35e1cc798d49af7d978a773365d, type: 3}
       propertyPath: m_Name
       value: Wall_Log_light_segment_L (8)
@@ -1440,11 +1448,11 @@ PrefabInstance:
     m_Modifications:
     - target: {fileID: 503961230800541495, guid: 13dbc35e1cc798d49af7d978a773365d, type: 3}
       propertyPath: m_IsActive
-      value: 1
+      value: 0
       objectReference: {fileID: 0}
     - target: {fileID: 4914240220411575064, guid: 13dbc35e1cc798d49af7d978a773365d, type: 3}
       propertyPath: m_IsActive
-      value: 1
+      value: 0
       objectReference: {fileID: 0}
     - target: {fileID: 5273802428282708273, guid: 13dbc35e1cc798d49af7d978a773365d, type: 3}
       propertyPath: m_Name
@@ -7003,6 +7011,14 @@ PrefabInstance:
     serializedVersion: 3
     m_TransformParent: {fileID: 921030480}
     m_Modifications:
+    - target: {fileID: 503961230800541495, guid: 13dbc35e1cc798d49af7d978a773365d, type: 3}
+      propertyPath: m_IsActive
+      value: 1
+      objectReference: {fileID: 0}
+    - target: {fileID: 4914240220411575064, guid: 13dbc35e1cc798d49af7d978a773365d, type: 3}
+      propertyPath: m_IsActive
+      value: 1
+      objectReference: {fileID: 0}
     - target: {fileID: 5273802428282708273, guid: 13dbc35e1cc798d49af7d978a773365d, type: 3}
       propertyPath: m_Name
       value: Wall_Log_light_segment_L (6)
@@ -10395,6 +10411,14 @@ PrefabInstance:
     serializedVersion: 3
     m_TransformParent: {fileID: 355393366}
     m_Modifications:
+    - target: {fileID: 503961230800541495, guid: 13dbc35e1cc798d49af7d978a773365d, type: 3}
+      propertyPath: m_IsActive
+      value: 1
+      objectReference: {fileID: 0}
+    - target: {fileID: 4914240220411575064, guid: 13dbc35e1cc798d49af7d978a773365d, type: 3}
+      propertyPath: m_IsActive
+      value: 1
+      objectReference: {fileID: 0}
     - target: {fileID: 5273802428282708273, guid: 13dbc35e1cc798d49af7d978a773365d, type: 3}
       propertyPath: m_Name
       value: Wall_Log_light_segment_L (4)
@@ -18194,6 +18218,14 @@ PrefabInstance:
     - target: {fileID: 32889605291686492, guid: 13dbc35e1cc798d49af7d978a773365d, type: 3}
       propertyPath: m_LocalPosition.y
       value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 503961230800541495, guid: 13dbc35e1cc798d49af7d978a773365d, type: 3}
+      propertyPath: m_IsActive
+      value: 1
+      objectReference: {fileID: 0}
+    - target: {fileID: 4914240220411575064, guid: 13dbc35e1cc798d49af7d978a773365d, type: 3}
+      propertyPath: m_IsActive
+      value: 1
       objectReference: {fileID: 0}
     - target: {fileID: 5273802428282708273, guid: 13dbc35e1cc798d49af7d978a773365d, type: 3}
       propertyPath: m_Name
