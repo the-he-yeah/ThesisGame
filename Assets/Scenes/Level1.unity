@@ -19216,12 +19216,20 @@ PrefabInstance:
     m_TransformParent: {fileID: 0}
     m_Modifications:
     - target: {fileID: 911669867270255922, guid: b51a5b34056e62542a84c0a2ccde99f6, type: 3}
+      propertyPath: attackRange
+      value: 2.5
+      objectReference: {fileID: 0}
+    - target: {fileID: 911669867270255922, guid: b51a5b34056e62542a84c0a2ccde99f6, type: 3}
       propertyPath: gameManager
       value: 
       objectReference: {fileID: 831339061}
     - target: {fileID: 911669867270255922, guid: b51a5b34056e62542a84c0a2ccde99f6, type: 3}
-      propertyPath: immediateDetectionRange
+      propertyPath: returnSpeed
       value: 3.5
+      objectReference: {fileID: 0}
+    - target: {fileID: 911669867270255922, guid: b51a5b34056e62542a84c0a2ccde99f6, type: 3}
+      propertyPath: immediateDetectionRange
+      value: 5
       objectReference: {fileID: 0}
     - target: {fileID: 911669867270255922, guid: b51a5b34056e62542a84c0a2ccde99f6, type: 3}
       propertyPath: peripheralDetectionAngle
@@ -19237,7 +19245,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 3184069508618871272, guid: b51a5b34056e62542a84c0a2ccde99f6, type: 3}
       propertyPath: m_LocalPosition.x
-      value: 43.437206
+      value: 43.687206
       objectReference: {fileID: 0}
     - target: {fileID: 3184069508618871272, guid: b51a5b34056e62542a84c0a2ccde99f6, type: 3}
       propertyPath: m_LocalPosition.y

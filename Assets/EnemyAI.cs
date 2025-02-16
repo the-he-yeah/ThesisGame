@@ -30,6 +30,8 @@ public class EnemyAI : MonoBehaviour
     [SerializeField] private LayerMask detectionLayers;
     [SerializeField] private LayerMask obstacleLayer; // Add this for obstacle detection
     [SerializeField] private bool showDebugLines = true; // Add debug toggle
+    [SerializeField] private float detectionTimeout = 5f; // Time in seconds to track player before rechecking detection
+
     
 
     [Header("Movement Settings")]
@@ -55,6 +57,7 @@ public class EnemyAI : MonoBehaviour
     private float attackTimer = 0f;
     private const float ATTACK_DELAY = 3f;
     private bool gameOverTriggered = false;
+    private float detectionTimer = 0f;
 
 
     private void Start()
@@ -81,6 +84,7 @@ public class EnemyAI : MonoBehaviour
         {
             case EnemyState.Patrol:
                 UpdatePatrolState();
+                CheckForPlayerDetection();
                 break;
             case EnemyState.Chase:
                 UpdateChaseState();
@@ -93,7 +97,7 @@ public class EnemyAI : MonoBehaviour
                 break;
         }
 
-        CheckForPlayerDetection();
+        
         UpdateAnimatorState();
     }
 
@@ -117,8 +121,67 @@ public class EnemyAI : MonoBehaviour
         }
     }
 
-    private void UpdateChaseState()
+    private void UpdateChaseState() 
     {
+        detectionTimer += Time.deltaTime;
+        
+        if (detectionTimer >= detectionTimeout)
+        {
+            // Recheck if player is still detectable
+            bool playerDetected = false;
+            
+            float distanceToPlayer = Vector3.Distance(eyePosition.position, player.position);
+            
+            // Check immediate detection
+            if (distanceToPlayer <= immediateDetectionRange && HasLineOfSightToPlayer())
+            {
+                playerDetected = true;
+            }
+            // Check main detection cone
+            else if (distanceToPlayer <= mainDetectionRange)
+            {
+                Vector3 directionToPlayer = (player.position - eyePosition.position).normalized;
+                float angle = Vector3.Angle(eyePosition.forward, directionToPlayer);
+                
+                if (angle <= mainDetectionAngle * 0.5f && HasLineOfSightToPlayer())
+                {
+                    playerDetected = true;
+                }
+            }
+            // Check peripheral detection
+            else if (distanceToPlayer <= peripheralDetectionRange)
+            {
+                Vector3 directionToPlayer = (player.position - eyePosition.position).normalized;
+                float angle = Vector3.Angle(eyePosition.forward, directionToPlayer);
+                
+                if (angle <= peripheralDetectionAngle * 0.5f && HasLineOfSightToPlayer())
+                {
+                    playerDetected = true; 
+                }
+            }
+
+            if (playerDetected)
+            {
+                // Reset timer and continue chasing
+                detectionTimer = 0f;
+                if (showDebugLines)
+                {
+                    Debug.Log("Player still detected - continuing chase");
+                }
+            }
+            else 
+            {
+                // Lost player - transition to return state
+                if (showDebugLines)
+                {
+                    Debug.Log("Lost player - transitioning to return state");
+                }
+                TransitionToState(EnemyState.Return);
+                return;
+            }
+        }
+
+        // Continue normal chase behavior
         agent.SetDestination(player.position);
         lastKnownPlayerPosition = player.position;
 
@@ -207,12 +270,9 @@ public class EnemyAI : MonoBehaviour
         // Immediate detection check
         if (distanceToPlayer <= immediateDetectionRange)
         {
-            if (HasLineOfSightToPlayer())
-            {
-                Debug.Log("Immediate detection - Transitioning to Chase");
-                TransitionToState(EnemyState.Chase);
-                return;
-            }
+            Debug.Log("Immediate detection - Transitioning to Chase");
+            TransitionToState(EnemyState.Chase);
+            return;
         }
 
         // Main detection cone check
@@ -340,6 +400,9 @@ public class EnemyAI : MonoBehaviour
         if (currentState == newState) return;
 
         Debug.Log($"Transitioning from {currentState} to {newState}");
+        
+        // Reset detection timer when transitioning states
+        detectionTimer = 0f;
 
         switch (newState)
         {
@@ -406,6 +469,9 @@ public class EnemyAI : MonoBehaviour
             eyePosition.position - eyePosition.right * mainDetectionRange,
             eyePosition.position + eyePosition.right * mainDetectionRange
         );
+         // Draw attack range
+        Gizmos.color = new Color(1f, 0f, 0f, 0.3f); // Semi-transparent red
+        Gizmos.DrawWireSphere(transform.position, attackRange);
     }
 
     private void DrawDetectionCone(float angle, float range)
