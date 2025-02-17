@@ -410,6 +410,7 @@ public class GameManager : MonoBehaviour
         {
             SetGameObjectState(calibrationVideo.gameObject, true);
             calibrationVideo.Play();
+            Debug.Log("Playing Calibration Video");
             calibrationVideo.loopPointReached += OnCalibrationVideoComplete;
         }
     }
@@ -418,7 +419,7 @@ public class GameManager : MonoBehaviour
     {
         SetGameObjectState(calibrationCompleteText, true);
         if (backFromCalibrationButton != null)
-        SetGameObjectState(backFromCalibrationButton.gameObject, false);
+        SetGameObjectState(backFromCalibrationButton.gameObject, true);
         
         if (calibrationVideo != null)
         {
