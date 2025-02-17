@@ -2,6 +2,7 @@ using UnityEngine;
 using UnityEngine.SceneManagement;
 using UnityEngine.UI;
 using UnityEngine.InputSystem;
+using UnityEngine.Video;
 
 public class GameManager : MonoBehaviour
 {
@@ -10,12 +11,16 @@ public class GameManager : MonoBehaviour
     [SerializeField] private CanvasGroup pauseMenuPanel;
     [SerializeField] private CanvasGroup gameOverPanel;
     [SerializeField] private CanvasGroup howToPlayPanel;
+    [SerializeField] private CanvasGroup calibratePanel;
+
 
 
     [Header("Main Menu Buttons")]
     [SerializeField] private Button startGameButton;
     [SerializeField] private Button mainMenuHowToPlayButton;
     [SerializeField] private Button exitGameButton;
+    [SerializeField] private Button calibrateButton;
+
 
     [Header("Pause Menu Buttons")]
     [SerializeField] private Button resumeGameButton;
@@ -35,6 +40,12 @@ public class GameManager : MonoBehaviour
     [SerializeField] private TMPro.TextMeshProUGUI heartbeatText;
     [SerializeField] private string heartbeatFormat = "BPM: {0}";
     [SerializeField] private float updateInterval = 0.5f; // How often to update the display
+
+    [Header("Calibration")]
+    [SerializeField] private Button startCalibrationButton;
+    [SerializeField] private VideoPlayer calibrationVideo;
+    [SerializeField] private GameObject calibrationCompleteText;
+    [SerializeField] private Button backFromCalibrationButton;
 
     private InputSystem_Actions inputActions;
     private bool isGamePaused;
@@ -111,6 +122,8 @@ public class GameManager : MonoBehaviour
         startGameButton.onClick.AddListener(StartGame);
         mainMenuHowToPlayButton.onClick.AddListener(() => ShowHowToPlay(mainMenuPanel));
         exitGameButton.onClick.AddListener(ExitGame);
+        calibrateButton.onClick.AddListener(() => ShowCalibratePanel(mainMenuPanel));
+
 
         // Pause Menu
         resumeGameButton.onClick.AddListener(ResumeGame);
@@ -124,6 +137,11 @@ public class GameManager : MonoBehaviour
 
         // How To Play
         goBackButton.onClick.AddListener(GoBackFromHowToPlay);
+
+        // Calibration Panel
+        startCalibrationButton.onClick.AddListener(StartCalibration);
+        backFromCalibrationButton.onClick.AddListener(GoBackFromCalibration);
+
     }
 
     #region Menu Management
@@ -143,6 +161,7 @@ public class GameManager : MonoBehaviour
         SetMenuState(pauseMenuPanel, false);
         SetMenuState(gameOverPanel, false);
         SetMenuState(howToPlayPanel, false);
+        SetMenuState(calibratePanel, false);
         if (gameplayUIPanel != null)
         {
             SetMenuState(gameplayUIPanel, false);
@@ -200,6 +219,11 @@ public class GameManager : MonoBehaviour
 
     private void OnPausePerformed()
     {
+        // Don't handle pause if we're in calibration
+        if (calibratePanel.alpha > 0)
+            return;
+
+        // If in game
         if (isGameActive)
         {
             if (isGamePaused)
@@ -210,6 +234,11 @@ public class GameManager : MonoBehaviour
             {
                 PauseGame();
             }
+        }
+        // If in How To Play menu
+        else if (howToPlayPanel.alpha > 0)
+        {
+            GoBackFromHowToPlay();
         }
     }
 
@@ -285,6 +314,9 @@ public class GameManager : MonoBehaviour
     {
         previousMenu = callingMenu;
         ShowMenu(howToPlayPanel);
+        Time.timeScale = 0;
+        DisableGameplayInput();
+        isGameActive = false;
         Debug.Log("Showing How To Play Screen");
     }
 
@@ -328,6 +360,88 @@ public class GameManager : MonoBehaviour
     {
         Cursor.visible = false;
         Cursor.lockState = CursorLockMode.Locked;
+    }
+
+    #endregion
+
+    #region Calibration Management
+
+    private void ShowCalibratePanel(CanvasGroup callingMenu)  // Modified to accept callingMenu
+    {
+        previousMenu = callingMenu;    // Store the calling menu, just like How To Play
+        ShowMenu(calibratePanel);
+        Time.timeScale = 0;
+        ResetCalibrationState();
+        ShowCursor();  // Ensure cursor is visible
+        DisableGameplayInput();
+        isGameActive = false;
+        Debug.Log("Showing Calibration Panel");
+    }
+
+    private void ResetCalibrationState()
+    {
+        // Set initial state of calibration elements
+        if (startCalibrationButton != null)
+            SetGameObjectState(startCalibrationButton.gameObject, true);
+        if (calibrationVideo != null)
+            SetGameObjectState(calibrationVideo.gameObject, false);
+        if (calibrationCompleteText != null)
+            SetGameObjectState(calibrationCompleteText, false);
+        if (backFromCalibrationButton != null)
+            SetGameObjectState(backFromCalibrationButton.gameObject, false);
+    }
+
+    private void SetGameObjectState(GameObject obj, bool state)
+    {
+        if (obj != null)
+        {
+            obj.SetActive(state);
+        }
+    }
+
+    private void StartCalibration()
+    {
+        Time.timeScale = 0;
+        // Keep the calibration panel visible but change its contents
+        if (startCalibrationButton != null)
+        SetGameObjectState(startCalibrationButton.gameObject, false);
+        
+        if (calibrationVideo != null)
+        {
+            SetGameObjectState(calibrationVideo.gameObject, true);
+            calibrationVideo.Play();
+            calibrationVideo.loopPointReached += OnCalibrationVideoComplete;
+        }
+    }
+
+    private void OnCalibrationVideoComplete(VideoPlayer vp)
+    {
+        SetGameObjectState(calibrationCompleteText, true);
+        if (backFromCalibrationButton != null)
+        SetGameObjectState(backFromCalibrationButton.gameObject, false);
+        
+        if (calibrationVideo != null)
+        {
+            calibrationVideo.loopPointReached -= OnCalibrationVideoComplete;
+        }
+    }
+
+    private void GoBackFromCalibration()
+    {
+        if (calibrationVideo != null)
+        {
+            calibrationVideo.Stop();
+        }
+        
+        // Use the same pattern as How To Play for going back
+        if (previousMenu != null)
+        {
+            ShowMenu(previousMenu);
+        }
+        else
+        {
+            ShowMainMenu();
+        }
     }
 
     #endregion
