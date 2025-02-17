@@ -9,9 +9,9 @@ public class EnemyAI : MonoBehaviour
 {
     private enum EnemyState
     {
-        Patrol = 0,
-        Chase = 1,
-        Return = 2,
+        Idle = 0,
+        Walk = 1,
+        Chase = 2,
         Attack = 3
     }
 
@@ -37,7 +37,6 @@ public class EnemyAI : MonoBehaviour
     [Header("Movement Settings")]
     [SerializeField] private float patrolSpeed = 3.5f;
     [SerializeField] private float chaseSpeed = 7f;
-    [SerializeField] private float returnSpeed = 5f;
     [SerializeField] private float patrolWaitTime = 2f;
     [SerializeField] private float minPatrolRadius = 10f;
     [SerializeField] private float maxPatrolRadius = 30f;
@@ -47,15 +46,11 @@ public class EnemyAI : MonoBehaviour
     [SerializeField] private GameManager gameManager;
 
     private EnemyState currentState;
-    private Vector3 lastKnownPlayerPosition;
     private Vector3 currentPatrolDestination;
     private float stateTimer;
     private bool isWaiting;
     private int failedPatrolAttempts;
     private const int MAX_PATROL_ATTEMPTS = 3;
-    private bool isAttackingPlayer = false;
-    private float attackTimer = 0f;
-    private const float ATTACK_DELAY = 3f;
     private bool gameOverTriggered = false;
     private float detectionTimer = 0f;
 
@@ -73,8 +68,13 @@ public class EnemyAI : MonoBehaviour
             return;
         }
         
-        currentState = EnemyState.Patrol;
+        // Initialize with proper movement settings
         agent.speed = patrolSpeed;
+        agent.isStopped = false;
+        
+        // Start in walk state and set initial patrol destination
+        currentState = EnemyState.Walk;
+        UpdateAnimatorState();
         SetNewPatrolDestination();
     }
 
@@ -82,21 +82,18 @@ public class EnemyAI : MonoBehaviour
     {
         switch (currentState)
         {
-            case EnemyState.Patrol:
+            case EnemyState.Idle:
+            case EnemyState.Walk:
                 UpdatePatrolState();
                 CheckForPlayerDetection();
                 break;
             case EnemyState.Chase:
                 UpdateChaseState();
                 break;
-            case EnemyState.Return:
-                UpdateReturnState();
-                break;
             case EnemyState.Attack:
                 UpdateAttackState();
                 break;
         }
-
         
         UpdateAnimatorState();
     }
@@ -109,7 +106,10 @@ public class EnemyAI : MonoBehaviour
             if (stateTimer <= 0)
             {
                 isWaiting = false;
+                TransitionToState(EnemyState.Walk);
                 SetNewPatrolDestination();
+                Debug.Log("Patrol wait time over - starting patrol");
+
             }
             return;
         }
@@ -118,6 +118,8 @@ public class EnemyAI : MonoBehaviour
         {
             isWaiting = true;
             stateTimer = patrolWaitTime;
+            TransitionToState(EnemyState.Idle);
+            Debug.Log("Reached patrol point - waiting");
         }
     }
 
@@ -127,42 +129,9 @@ public class EnemyAI : MonoBehaviour
         
         if (detectionTimer >= detectionTimeout)
         {
-            // Recheck if player is still detectable
-            bool playerDetected = false;
-            
-            float distanceToPlayer = Vector3.Distance(eyePosition.position, player.position);
-            
-            // Check immediate detection
-            if (distanceToPlayer <= immediateDetectionRange && HasLineOfSightToPlayer())
+            if (IsPlayerDetected()) // Use the CheckForPlayerDetection logic
             {
-                playerDetected = true;
-            }
-            // Check main detection cone
-            else if (distanceToPlayer <= mainDetectionRange)
-            {
-                Vector3 directionToPlayer = (player.position - eyePosition.position).normalized;
-                float angle = Vector3.Angle(eyePosition.forward, directionToPlayer);
-                
-                if (angle <= mainDetectionAngle * 0.5f && HasLineOfSightToPlayer())
-                {
-                    playerDetected = true;
-                }
-            }
-            // Check peripheral detection
-            else if (distanceToPlayer <= peripheralDetectionRange)
-            {
-                Vector3 directionToPlayer = (player.position - eyePosition.position).normalized;
-                float angle = Vector3.Angle(eyePosition.forward, directionToPlayer);
-                
-                if (angle <= peripheralDetectionAngle * 0.5f && HasLineOfSightToPlayer())
-                {
-                    playerDetected = true; 
-                }
-            }
-
-            if (playerDetected)
-            {
-                // Reset timer and continue chasing
+                // Reset timer and continue chase
                 detectionTimer = 0f;
                 if (showDebugLines)
                 {
@@ -171,34 +140,30 @@ public class EnemyAI : MonoBehaviour
             }
             else 
             {
-                // Lost player - transition to return state
+                // Lost player - transition to patrol
                 if (showDebugLines)
                 {
-                    Debug.Log("Lost player - transitioning to return state");
+                    Debug.Log("Lost player - transitioning to patrol");
                 }
-                TransitionToState(EnemyState.Return);
+                isWaiting = true;
+                stateTimer = patrolWaitTime;
+                TransitionToState(EnemyState.Idle);
                 return;
             }
         }
 
-        // Continue normal chase behavior
+        // Update destination to current player position
         agent.SetDestination(player.position);
-        lastKnownPlayerPosition = player.position;
 
-        if (Vector3.Distance(transform.position, player.position) <= attackRange)
+        // Check for attack range
+       if (Vector3.Distance(transform.position, player.position) <= attackRange)
         {
+            player.gameObject.SetActive(false); // Or use player.enabled if it's a specific component
             TransitionToState(EnemyState.Attack);
         }
     }
 
-    private void UpdateReturnState()
-    {
-        if (!agent.pathPending && agent.remainingDistance < 0.5f)
-        {
-            TransitionToState(EnemyState.Patrol);
-            return;
-        }
-    }
+    
 
     private void TriggerGameOver()
     {
@@ -221,38 +186,15 @@ public class EnemyAI : MonoBehaviour
     {
         if (gameOverTriggered) return;
 
+        // Turn to face player
         transform.LookAt(player.position);
-        
-        if (Vector3.Distance(transform.position, player.position) > attackRange)
-        {
-            // Reset attack state if player moves out of range
-            isAttackingPlayer = false;
-            attackTimer = 0f;
-            TransitionToState(EnemyState.Chase);
-        }
-        else if (!isAttackingPlayer)
-        {
-            // Start attack sequence
-            isAttackingPlayer = true;
-            attackTimer = 0f;
-            Debug.Log("Starting attack sequence!");
-        }
-        else
-        {
-            // Count up the timer
-            attackTimer += Time.deltaTime;
-            
-            if (showDebugLines)
-            {
-                Debug.Log($"Attack timer: {ATTACK_DELAY - attackTimer:F1} seconds remaining");
-            }
+    }
 
-            if (attackTimer >= ATTACK_DELAY)
-            {
-                Debug.Log("Attack successful!");
-                TriggerGameOver();
-            }
-        }
+    // Add animation event callback
+    public void OnAttackAnimationComplete()
+    {
+        TriggerGameOver();
+        Debug.Log($"GameOver Triggered");
     }
 
 
@@ -262,17 +204,20 @@ public class EnemyAI : MonoBehaviour
 
         float distanceToPlayer = Vector3.Distance(eyePosition.position, player.position);
         
-        if (showDebugLines)
-        {
-            Debug.Log($"Distance to player: {distanceToPlayer}");
-        }
+        //if (showDebugLines)
+        //{
+        //    Debug.Log($"Distance to player: {distanceToPlayer}");
+        //}
         
         // Immediate detection check
         if (distanceToPlayer <= immediateDetectionRange)
         {
-            Debug.Log("Immediate detection - Transitioning to Chase");
-            TransitionToState(EnemyState.Chase);
-            return;
+            if (HasLineOfSightToPlayer())
+            {
+                Debug.Log("Immediate detection - Transitioning to Chase");
+                TransitionToState(EnemyState.Chase);
+                return;
+            }
         }
 
         // Main detection cone check
@@ -306,6 +251,43 @@ public class EnemyAI : MonoBehaviour
                 TransitionToState(EnemyState.Chase);
             }
         }
+    }
+
+    private bool IsPlayerDetected()
+    {
+        float distanceToPlayer = Vector3.Distance(eyePosition.position, player.position);
+        
+        // Immediate detection check - no line of sight needed
+        if (distanceToPlayer <= immediateDetectionRange)
+        {
+            return true;
+        }
+
+        // Main detection cone check
+        if (distanceToPlayer <= mainDetectionRange)
+        {
+            Vector3 directionToPlayer = (player.position - eyePosition.position).normalized;
+            float angle = Vector3.Angle(eyePosition.forward, directionToPlayer);
+            
+            if (angle <= mainDetectionAngle * 0.5f && HasLineOfSightToPlayer())
+            {
+                return true;
+            }
+        }
+
+        // Peripheral vision check
+        if (distanceToPlayer <= peripheralDetectionRange)
+        {
+            Vector3 directionToPlayer = (player.position - eyePosition.position).normalized;
+            float angle = Vector3.Angle(eyePosition.forward, directionToPlayer);
+            
+            if (angle <= peripheralDetectionAngle * 0.5f && HasLineOfSightToPlayer())
+            {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     private bool HasLineOfSightToPlayer()
@@ -401,15 +383,18 @@ public class EnemyAI : MonoBehaviour
 
         Debug.Log($"Transitioning from {currentState} to {newState}");
         
-        // Reset detection timer when transitioning states
         detectionTimer = 0f;
 
         switch (newState)
         {
-            case EnemyState.Patrol:
+            case EnemyState.Idle:
+                agent.isStopped = true;
+                agent.speed = 0;
+                break;
+
+            case EnemyState.Walk:
                 agent.isStopped = false;
                 agent.speed = patrolSpeed;
-                SetNewPatrolDestination();
                 break;
 
             case EnemyState.Chase:
@@ -417,25 +402,33 @@ public class EnemyAI : MonoBehaviour
                 agent.speed = chaseSpeed;
                 break;
 
-            case EnemyState.Return:
-                agent.isStopped = false;
-                agent.speed = returnSpeed;
-                agent.SetDestination(lastKnownPlayerPosition);
-                break;
-
             case EnemyState.Attack:
                 agent.isStopped = true;
-                animator.SetTrigger("Attack");
+                agent.speed = 0;
                 break;
         }
 
         currentState = newState;
+        UpdateAnimatorState();
     }
 
     private void UpdateAnimatorState()
     {
-        animator.SetInteger("State", (int)currentState);
-        animator.SetFloat("Speed", agent.velocity.magnitude / chaseSpeed);
+        switch (currentState)
+        {
+            case EnemyState.Idle:
+            case EnemyState.Walk:
+                // Set to walk animation if moving, idle if stopped
+                float speed = agent.velocity.magnitude;
+                animator.SetInteger("State", speed > 0.1f ? 1 : 0);
+                break;
+            case EnemyState.Chase:
+                animator.SetInteger("State", 2); // Chase
+                break;
+            case EnemyState.Attack:
+                animator.SetInteger("State", 3); // Attack
+                break;
+        }
     }
 
     private void OnCollisionEnter(Collision collision)
