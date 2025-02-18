@@ -10535,6 +10535,10 @@ PrefabInstance:
       value: 
       objectReference: {fileID: 355256486}
     - target: {fileID: 7462744262260739597, guid: 8fc510483da16f84ba451d998593fc1e, type: 3}
+      propertyPath: maxHRDeviation
+      value: 5
+      objectReference: {fileID: 0}
+    - target: {fileID: 7462744262260739597, guid: 8fc510483da16f84ba451d998593fc1e, type: 3}
       propertyPath: pauseMenuPanel
       value: 
       objectReference: {fileID: 355256488}
@@ -10594,6 +10598,10 @@ PrefabInstance:
       propertyPath: backFromCalibrationButton
       value: 
       objectReference: {fileID: 386035838}
+    - target: {fileID: 7462744262260739597, guid: 8fc510483da16f84ba451d998593fc1e, type: 3}
+      propertyPath: calibrationSampleInterval
+      value: 0.5
+      objectReference: {fileID: 0}
     - target: {fileID: 7495642639444095065, guid: 8fc510483da16f84ba451d998593fc1e, type: 3}
       propertyPath: m_Name
       value: GameManager

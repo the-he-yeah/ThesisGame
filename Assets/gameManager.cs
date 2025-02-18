@@ -3,6 +3,9 @@ using UnityEngine.SceneManagement;
 using UnityEngine.UI;
 using UnityEngine.InputSystem;
 using UnityEngine.Video;
+using System.Linq;
+using System.Collections;
+using System.Collections.Generic;
 
 public class GameManager : MonoBehaviour
 {
@@ -47,11 +50,19 @@ public class GameManager : MonoBehaviour
     [SerializeField] private GameObject calibrationCompleteText;
     [SerializeField] private Button backFromCalibrationButton;
 
+    [Header("Heartbeat Calibration")]
+    [SerializeField] private float maxHRDeviation = 10f;
+    [SerializeField] private float calibrationSampleInterval = 0.2f;
+
     private InputSystem_Actions inputActions;
     private bool isGamePaused;
     private bool isGameActive;
     private CanvasGroup previousMenu;
     private float updateTimer = 0f;
+    private List<int> calibrationHeartbeats = new List<int>();
+    private float baselineHeartbeat;
+    public float BaselineHeartbeat => baselineHeartbeat;  // Public getter for other scripts
+    private bool isCalibrating = false;
 
     private void Awake()
     {
@@ -366,6 +377,75 @@ public class GameManager : MonoBehaviour
 
     #region Calibration Management
 
+    private float CalculateMedian(List<int> values)
+    {
+        var sortedValues = values.OrderBy(v => v).ToList();
+        int count = sortedValues.Count;
+        if (count == 0) return 0;
+        
+        if (count % 2 == 0)
+        {
+            return (sortedValues[count / 2 - 1] + sortedValues[count / 2]) / 2f;
+        }
+        return sortedValues[count / 2];
+    }
+
+    private float CalculateBaselineHeartbeat()
+    {
+        Debug.Log($"Starting baseline calculation with {calibrationHeartbeats.Count} readings");
+        if (calibrationHeartbeats.Count == 0)
+        {
+            Debug.LogWarning("No heartbeat readings collected during calibration");
+            return 0f;
+        }
+        float medianHR = CalculateMedian(calibrationHeartbeats);
+        Debug.Log($"Median HR: {medianHR}");
+        float minHR = medianHR - maxHRDeviation;
+        float maxHR = medianHR + maxHRDeviation;
+        Debug.Log($"Valid range: {minHR} to {maxHR}");
+
+        var validHeartbeats = calibrationHeartbeats
+            .Where(hr => hr >= minHR && hr <= maxHR)
+            .ToList();
+
+        Debug.Log($"Valid readings count: {validHeartbeats.Count}");
+
+        if (validHeartbeats.Count == 0)
+        {
+            Debug.LogWarning("No valid heartbeats found within deviation range");
+            return 0f;
+        }
+
+        float average = (float)validHeartbeats.Average();
+        Debug.Log($"Calculated average: {average}");
+        return average;
+    }
+
+    private IEnumerator RecordHeartbeats()
+    {
+        Debug.Log("Started recording heartbeats");
+        calibrationHeartbeats.Clear();
+        isCalibrating = true;
+        
+        // Keep recording until explicitly stopped
+        while (isCalibrating)
+        {
+            if (UDPReceiver.Instance != null)
+            {
+                int currentHeartbeat = UDPReceiver.Instance.Heartbeat;
+                calibrationHeartbeats.Add(currentHeartbeat);
+                Debug.Log($"Added heartbeat: {currentHeartbeat}, Total readings: {calibrationHeartbeats.Count}");
+            }
+            else
+            {
+                Debug.LogWarning("UDPReceiver.Instance is null during recording");
+            }
+            yield return new WaitForSecondsRealtime(calibrationSampleInterval);
+        }
+        
+        Debug.Log($"Finished recording. Total heartbeats collected: {calibrationHeartbeats.Count}");
+    }
+
     private void ShowCalibratePanel(CanvasGroup callingMenu)  // Modified to accept callingMenu
     {
         previousMenu = callingMenu;    // Store the calling menu, just like How To Play
@@ -402,13 +482,16 @@ public class GameManager : MonoBehaviour
     private void StartCalibration()
     {
         Time.timeScale = 0;
-        // Keep the calibration panel visible but change its contents
+        calibrationHeartbeats.Clear();
+        isCalibrating = true;  // Start recording flag
+        
         if (startCalibrationButton != null)
-        SetGameObjectState(startCalibrationButton.gameObject, false);
+            SetGameObjectState(startCalibrationButton.gameObject, false);
         
         if (calibrationVideo != null)
         {
             SetGameObjectState(calibrationVideo.gameObject, true);
+            StartCoroutine(RecordHeartbeats());  // Start recording first
             calibrationVideo.Play();
             Debug.Log("Playing Calibration Video");
             calibrationVideo.loopPointReached += OnCalibrationVideoComplete;
@@ -417,9 +500,21 @@ public class GameManager : MonoBehaviour
 
     private void OnCalibrationVideoComplete(VideoPlayer vp)
     {
+        isCalibrating = false;  // Stop recording
+        StartCoroutine(FinalizeCalibration());
+    }
+
+    private IEnumerator FinalizeCalibration()
+    {
+        // Wait a short moment to ensure we've collected all readings
+        yield return new WaitForSecondsRealtime(calibrationSampleInterval * 2);
+        
+        baselineHeartbeat = CalculateBaselineHeartbeat();
+        Debug.Log($"Calibration complete. Baseline heartbeat: {baselineHeartbeat}");
+
         SetGameObjectState(calibrationCompleteText, true);
         if (backFromCalibrationButton != null)
-        SetGameObjectState(backFromCalibrationButton.gameObject, true);
+            SetGameObjectState(backFromCalibrationButton.gameObject, true);
         
         if (calibrationVideo != null)
         {
@@ -429,12 +524,12 @@ public class GameManager : MonoBehaviour
 
     private void GoBackFromCalibration()
     {
+        isCalibrating = false;  // Make sure to stop recording if user goes back
         if (calibrationVideo != null)
         {
             calibrationVideo.Stop();
         }
         
-        // Use the same pattern as How To Play for going back
         if (previousMenu != null)
         {
             ShowMenu(previousMenu);
@@ -451,6 +546,11 @@ public class GameManager : MonoBehaviour
 
     public bool IsGameActive() => isGameActive;
     public bool IsGamePaused() => isGamePaused;
+
+    public float GetBaselineHeartbeat()
+    {
+        return baselineHeartbeat;
+    }
 
     #endregion
 }
